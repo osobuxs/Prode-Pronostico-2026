@@ -1,45 +1,69 @@
 import "./_env";
 import { createAdminClient } from "../lib/supabase";
-import { fetchGroupStageMatches, mapStatus } from "../lib/footballData";
+import { fetchEventsByDate, mapSdbStatus, toScore } from "../lib/sportsdb";
+import { canonicalTeam } from "../lib/normalize";
 
 /**
- * Actualiza el RESULTADO REAL de los partidos.
- * Baja el fixture de football-data.org y, cruzando por external_id,
- * escribe marcador y estado (scheduled/live/finished) en la DB.
+ * Actualiza el RESULTADO REAL de los partidos desde TheSportsDB
+ * (football-data free no da los marcadores). Cruza por los equipos
+ * (nombre canónico), manejando el orden local/visitante.
  *
- * Este es el script que el CRON corre seguido (cada hora / durante partidos).
+ * Trae los partidos de hoy y los 2 días previos (UTC) — suficiente para
+ * capturar lo recién jugado en cada corrida del cron.
  *
  * Correr:  npm run update-results
  */
 async function main() {
   const db = createAdminClient();
 
-  console.log("→ Bajando resultados de football-data.org…");
-  const fdMatches = await fetchGroupStageMatches();
-  let updated = 0;
+  // índices: equipo canónico → id, y matchKey → match
+  const { data: teams } = await db.from("teams").select("id,name");
+  const { data: matches } = await db.from("matches").select("id,home_team_id,away_team_id");
+  if (!teams || !matches) throw new Error("DB vacía. Corré `npm run seed` primero.");
 
-  for (const m of fdMatches) {
-    const { error, count } = await db
-      .from("matches")
-      .update(
-        {
-          home_score: m.score.fullTime.home,
-          away_score: m.score.fullTime.away,
-          status: mapStatus(m.status),
-          kickoff: m.utcDate,
-        },
-        { count: "exact" }
-      )
-      .eq("external_id", String(m.id));
-
-    if (error) {
-      console.warn(`  ⚠ ${m.homeTeam.name} vs ${m.awayTeam.name}: ${error.message}`);
-      continue;
-    }
-    if (count && count > 0) updated++;
+  const canonById = new Map(teams.map((t) => [t.id, canonicalTeam(t.name)]));
+  // key "home__away" canónico → { id, invertido:false }
+  const matchByKey = new Map<string, { id: number; swap: boolean }>();
+  for (const m of matches) {
+    const h = canonById.get(m.home_team_id!);
+    const a = canonById.get(m.away_team_id!);
+    if (!h || !a) continue;
+    matchByKey.set(`${h}__${a}`, { id: m.id, swap: false });
+    matchByKey.set(`${a}__${h}`, { id: m.id, swap: true }); // por si la fuente invierte
   }
 
-  console.log(`✓ ${updated} partidos actualizados.`);
+  // fechas a consultar (hoy + 2 previos, UTC)
+  const dates: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    dates.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+  }
+
+  let updated = 0;
+  for (const date of dates) {
+    const events = await fetchEventsByDate(date);
+    for (const ev of events) {
+      const home = canonicalTeam(ev.strHomeTeam);
+      const away = canonicalTeam(ev.strAwayTeam);
+      const found = matchByKey.get(`${home}__${away}`);
+      if (!found) continue;
+
+      let hs = toScore(ev.intHomeScore);
+      let as = toScore(ev.intAwayScore);
+      if (found.swap) [hs, as] = [as, hs]; // alinear con el orden de la DB
+
+      const status = mapSdbStatus(ev.strStatus);
+      // no pisar un resultado con vacío
+      if (status === "scheduled" && hs === null && as === null) continue;
+
+      const { error } = await db
+        .from("matches")
+        .update({ home_score: hs, away_score: as, status })
+        .eq("id", found.id);
+      if (!error) updated++;
+    }
+  }
+
+  console.log(`✓ ${updated} partidos actualizados (TheSportsDB).`);
 }
 
 main().catch((e) => {

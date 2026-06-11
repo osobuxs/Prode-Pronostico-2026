@@ -12,6 +12,7 @@ export function MatchRow({ match }: { match: MatchView }) {
   const finished = match.status === "finished";
   const live = match.status === "live";
   const decided = finished || live;
+  const hasScore = match.realHome !== null || match.realAway !== null;
 
   return (
     <div className="rounded-xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-neutral-900/40 p-3 transition-colors hover:border-neutral-700">
@@ -20,13 +21,17 @@ export function MatchRow({ match }: { match: MatchView }) {
         <TeamSide team={match.home} align="right" />
 
         <div className="flex min-w-[72px] flex-col items-center">
-          {decided ? (
+          {decided && hasScore ? (
             <span
               className={`rounded-lg px-3 py-1 text-lg font-black tabular-nums ${
                 live ? "bg-rose-600 text-white" : "bg-neutral-800 text-white"
               }`}
             >
               {match.realHome ?? 0}–{match.realAway ?? 0}
+            </span>
+          ) : decided && !hasScore ? (
+            <span className="rounded-lg bg-neutral-800 px-2 py-1 text-[11px] font-bold uppercase text-neutral-300">
+              {finished ? "Jugado" : "En juego"}
             </span>
           ) : (
             <>

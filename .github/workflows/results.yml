@@ -26,5 +26,6 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
-          FOOTBALL_DATA_COMPETITION: ${{ secrets.FOOTBALL_DATA_COMPETITION }}
+          # Resultados desde TheSportsDB (football-data free no da marcadores).
+          # Opcional: si cargás una key propia gratis, sino usa la de prueba.
+          SPORTSDB_API_KEY: ${{ secrets.SPORTSDB_API_KEY }}
