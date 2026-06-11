@@ -1,0 +1,32 @@
+name: Scrapear pronósticos
+
+# Los PRONÓSTICOS casi no cambian una vez publicados → cada 12 horas alcanza.
+# Lo importante es no pegarle de más a Forebet/Vitibet (evitar baneos).
+on:
+  schedule:
+    - cron: "0 6,18 * * *" # 06:00 y 18:00 UTC
+  workflow_dispatch: {} # correr a mano cuando quieras
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      # PredictZ y WinDrawWin se scrapean con Playwright → hace falta chromium
+      - run: npx playwright install --with-deps chromium
+      - run: npm run scrape
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Opcionales: si alguna fuente publica el Mundial en una URL distinta
+          # a la default, definila como secret (FOREBET_URL, VITIBET_URL,
+          # PREDICTZ_URL, WINDRAWWIN_URL).
+          FOREBET_URL: ${{ secrets.FOREBET_URL }}
+          VITIBET_URL: ${{ secrets.VITIBET_URL }}
+          PREDICTZ_URL: ${{ secrets.PREDICTZ_URL }}
+          WINDRAWWIN_URL: ${{ secrets.WINDRAWWIN_URL }}

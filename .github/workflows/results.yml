@@ -1,0 +1,30 @@
+name: Actualizar resultados reales
+
+# Los partidos del Mundial se juegan en las franjas UTC 16:00-23:59 y
+# 00:00-04:59. En esas horas actualizamos CADA 5 MINUTOS (para ver
+# resultados casi en vivo). El resto del día, cada hora como red de
+# seguridad. update-results hace 1 sola llamada a football-data por
+# corrida, así que no choca con el rate-limit (10 req/min).
+on:
+  schedule:
+    - cron: "*/5 16-23 * * *" # cada 5 min, tarde-noche UTC (hay partidos)
+    - cron: "*/5 0-4 * * *"   # cada 5 min, madrugada UTC (partidos de noche en América)
+    - cron: "0 5-15 * * *"    # cada hora, franja sin partidos (red de seguridad)
+  workflow_dispatch: {} # permite correrlo a mano desde la pestaña Actions
+
+jobs:
+  update-results:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run update-results
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          FOOTBALL_DATA_COMPETITION: ${{ secrets.FOOTBALL_DATA_COMPETITION }}
