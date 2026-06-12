@@ -11,6 +11,10 @@ function key(): string {
   return process.env.SPORTSDB_API_KEY ?? "123";
 }
 
+// FIFA World Cup en TheSportsDB
+const LEAGUE_ID = process.env.SPORTSDB_LEAGUE_ID ?? "4429";
+const SEASON = process.env.SPORTSDB_SEASON ?? "2026";
+
 export interface SDBEvent {
   strHomeTeam: string;
   strAwayTeam: string;
@@ -21,14 +25,20 @@ export interface SDBEvent {
   dateEvent: string;
 }
 
-/** Partidos de soccer de una fecha (YYYY-MM-DD), filtrados al Mundial. */
-export async function fetchEventsByDate(date: string): Promise<SDBEvent[]> {
-  const res = await fetch(`${BASE}/${key()}/eventsday.php?d=${date}&s=Soccer`, {
-    headers: { "User-Agent": "prode-mundial-2026" },
-  });
+/**
+ * Partidos del Mundial con su estado ACTUAL (incluye los en vivo).
+ * Usa eventsseason: en el free tier devuelve ~15 eventos alrededor de "ahora"
+ * (recién jugados + en curso + próximos), justo lo que hay que actualizar.
+ * El cron corre seguido, así que no se acumulan partidos sin capturar.
+ */
+export async function fetchSeasonEvents(): Promise<SDBEvent[]> {
+  const res = await fetch(
+    `${BASE}/${key()}/eventsseason.php?id=${LEAGUE_ID}&s=${SEASON}`,
+    { headers: { "User-Agent": "prode-mundial-2026" } }
+  );
   if (!res.ok) return [];
   const data = (await res.json()) as { events: SDBEvent[] | null };
-  return (data.events ?? []).filter((e) => /world cup/i.test(e.strLeague ?? ""));
+  return data.events ?? [];
 }
 
 /** Mapea el estado de TheSportsDB a nuestro enum interno. */

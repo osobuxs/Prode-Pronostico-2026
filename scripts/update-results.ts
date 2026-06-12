@@ -1,6 +1,6 @@
 import "./_env";
 import { createAdminClient } from "../lib/supabase";
-import { fetchEventsByDate, mapSdbStatus, toScore } from "../lib/sportsdb";
+import { fetchSeasonEvents, mapSdbStatus, toScore } from "../lib/sportsdb";
 import { canonicalTeam } from "../lib/normalize";
 
 /**
@@ -32,38 +32,32 @@ async function main() {
     matchByKey.set(`${a}__${h}`, { id: m.id, swap: true }); // por si la fuente invierte
   }
 
-  // fechas a consultar (hoy + 2 previos, UTC)
-  const dates: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    dates.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
-  }
-
+  const events = await fetchSeasonEvents();
   let updated = 0;
-  for (const date of dates) {
-    const events = await fetchEventsByDate(date);
-    for (const ev of events) {
-      const home = canonicalTeam(ev.strHomeTeam);
-      const away = canonicalTeam(ev.strAwayTeam);
-      const found = matchByKey.get(`${home}__${away}`);
-      if (!found) continue;
+  let live = 0;
+  for (const ev of events) {
+    const home = canonicalTeam(ev.strHomeTeam);
+    const away = canonicalTeam(ev.strAwayTeam);
+    const found = matchByKey.get(`${home}__${away}`);
+    if (!found) continue;
 
-      let hs = toScore(ev.intHomeScore);
-      let as = toScore(ev.intAwayScore);
-      if (found.swap) [hs, as] = [as, hs]; // alinear con el orden de la DB
+    let hs = toScore(ev.intHomeScore);
+    let as = toScore(ev.intAwayScore);
+    if (found.swap) [hs, as] = [as, hs]; // alinear con el orden de la DB
 
-      const status = mapSdbStatus(ev.strStatus);
-      // no pisar un resultado con vacío
-      if (status === "scheduled" && hs === null && as === null) continue;
+    const status = mapSdbStatus(ev.strStatus);
+    // no pisar con un partido aún sin empezar y sin datos
+    if (status === "scheduled" && hs === null && as === null) continue;
+    if (status === "live") live++;
 
-      const { error } = await db
-        .from("matches")
-        .update({ home_score: hs, away_score: as, status })
-        .eq("id", found.id);
-      if (!error) updated++;
-    }
+    const { error } = await db
+      .from("matches")
+      .update({ home_score: hs, away_score: as, status })
+      .eq("id", found.id);
+    if (!error) updated++;
   }
 
-  console.log(`✓ ${updated} partidos actualizados (TheSportsDB).`);
+  console.log(`✓ ${updated} partidos actualizados (${live} en vivo) — TheSportsDB.`);
 }
 
 main().catch((e) => {
