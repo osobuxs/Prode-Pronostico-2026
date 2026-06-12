@@ -6,8 +6,9 @@ import { Bracket } from "../components/Bracket";
 import { BracketTree } from "../components/BracketTree";
 import { NavBar } from "../components/NavBar";
 
-// Revalida cada 5 minutos (los datos vienen del cron, no del usuario).
-export const revalidate = 300;
+// Lee la base en cada carga (sin cache), así un F5 muestra el resultado
+// más reciente — clave para los partidos en vivo.
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   let groups: Awaited<ReturnType<typeof getGroups>> = [];
