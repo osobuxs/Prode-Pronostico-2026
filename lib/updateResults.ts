@@ -41,7 +41,19 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
     let as = toScore(ev.intAwayScore);
     if (found.swap) [hs, as] = [as, hs];
 
-    const status = mapSdbStatus(ev.strStatus);
+    let status = mapSdbStatus(ev.strStatus);
+
+    // Red de seguridad: TheSportsDB a veces deja el partido en "en vivo"
+    // mucho después de terminado (delay en marcar FT). Si pasaron +4h del
+    // inicio y sigue "live", lo damos por terminado. Usamos 4h (no 2.5h)
+    // para no cortar un partido que se fue a alargue + penales (~3h).
+    if (status === "live" && ev.dateEvent && ev.strTime) {
+      const start = Date.parse(`${ev.dateEvent}T${ev.strTime}Z`);
+      if (Number.isFinite(start) && Date.now() - start > 240 * 60 * 1000) {
+        status = "finished";
+      }
+    }
+
     if (status === "scheduled" && hs === null && as === null) continue;
     if (status === "live") live++;
 

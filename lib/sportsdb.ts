@@ -23,6 +23,7 @@ export interface SDBEvent {
   strStatus: string | null;
   strLeague: string | null;
   dateEvent: string;
+  strTime: string | null; // hora UTC de inicio "HH:MM:SS"
 }
 
 /**
