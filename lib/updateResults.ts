@@ -1,5 +1,5 @@
 import { createAdminClient } from "./supabase";
-import { fetchSeasonEvents, mapSdbStatus, toScore } from "./sportsdb";
+import { fetchAllRelevantEvents, mapSdbStatus, toScore } from "./sportsdb";
 import { canonicalTeam } from "./normalize";
 
 /**
@@ -15,20 +15,23 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
   const db = createAdminClient();
 
   const { data: teams } = await db.from("teams").select("id,name");
-  const { data: matches } = await db.from("matches").select("id,home_team_id,away_team_id");
+  const { data: matches } = await db
+    .from("matches")
+    .select("id,home_team_id,away_team_id,group_id");
   if (!teams || !matches) throw new Error("DB vacía. Corré `npm run seed` primero.");
 
   const canonById = new Map(teams.map((t) => [t.id, canonicalTeam(t.name)]));
-  const matchByKey = new Map<string, { id: number; swap: boolean }>();
+  const matchByKey = new Map<string, { id: number; swap: boolean; isGroup: boolean }>();
   for (const m of matches) {
     const h = canonById.get(m.home_team_id!);
     const a = canonById.get(m.away_team_id!);
     if (!h || !a) continue;
-    matchByKey.set(`${h}__${a}`, { id: m.id, swap: false });
-    matchByKey.set(`${a}__${h}`, { id: m.id, swap: true });
+    const isGroup = m.group_id != null;
+    matchByKey.set(`${h}__${a}`, { id: m.id, swap: false, isGroup });
+    matchByKey.set(`${a}__${h}`, { id: m.id, swap: true, isGroup });
   }
 
-  const events = await fetchSeasonEvents();
+  const events = await fetchAllRelevantEvents();
   let updated = 0;
   let live = 0;
   for (const ev of events) {
@@ -44,12 +47,14 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
     let status = mapSdbStatus(ev.strStatus);
 
     // Red de seguridad: TheSportsDB a veces deja el partido en "en vivo"
-    // mucho después de terminado (delay en marcar FT). Si pasaron +4h del
-    // inicio y sigue "live", lo damos por terminado. Usamos 4h (no 2.5h)
-    // para no cortar un partido que se fue a alargue + penales (~3h).
+    // mucho después de terminado (delay en marcar FT). Si pasó el tiempo
+    // razonable y sigue "live", lo damos por terminado.
+    //   - grupos: 2.5h (no hay alargue ni penales)
+    //   - eliminatorias: 4h (puede ir a alargue + penales ~3h)
     if (status === "live" && ev.dateEvent && ev.strTime) {
       const start = Date.parse(`${ev.dateEvent}T${ev.strTime}Z`);
-      if (Number.isFinite(start) && Date.now() - start > 240 * 60 * 1000) {
+      const limitMin = found.isGroup ? 150 : 240;
+      if (Number.isFinite(start) && Date.now() - start > limitMin * 60 * 1000) {
         status = "finished";
       }
     }

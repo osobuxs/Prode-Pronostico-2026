@@ -27,10 +27,9 @@ export interface SDBEvent {
 }
 
 /**
- * Partidos del Mundial con su estado ACTUAL (incluye los en vivo).
- * Usa eventsseason: en el free tier devuelve ~15 eventos alrededor de "ahora"
- * (recién jugados + en curso + próximos), justo lo que hay que actualizar.
- * El cron corre seguido, así que no se acumulan partidos sin capturar.
+ * eventsseason: ~15 eventos del free tier. OJO: no siempre incluye los de
+ * HOY (su ventana se queda en días previos), así que lo combinamos con
+ * eventsday() para no perder los partidos en vivo de la fecha actual.
  */
 export async function fetchSeasonEvents(): Promise<SDBEvent[]> {
   const res = await fetch(
@@ -40,6 +39,37 @@ export async function fetchSeasonEvents(): Promise<SDBEvent[]> {
   if (!res.ok) return [];
   const data = (await res.json()) as { events: SDBEvent[] | null };
   return data.events ?? [];
+}
+
+/** Partidos de soccer de una fecha (YYYY-MM-DD), filtrados al Mundial. */
+export async function fetchEventsByDate(date: string): Promise<SDBEvent[]> {
+  const res = await fetch(`${BASE}/${key()}/eventsday.php?d=${date}&s=Soccer`, {
+    headers: { "User-Agent": "prode-mundial-2026" },
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { events: SDBEvent[] | null };
+  return (data.events ?? []).filter((e) => /world cup/i.test(e.strLeague ?? ""));
+}
+
+/**
+ * Todos los partidos relevantes a actualizar: combina la temporada
+ * (históricos) + hoy y ayer (en vivo / recién jugados). Dedup por
+ * equipos+fecha; los de hoy pisan (estado más fresco).
+ */
+export async function fetchAllRelevantEvents(): Promise<SDBEvent[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const [season, dYest, dToday] = await Promise.all([
+    fetchSeasonEvents(),
+    fetchEventsByDate(yest),
+    fetchEventsByDate(today),
+  ]);
+  const keyOf = (e: SDBEvent) => `${e.strHomeTeam}|${e.strAwayTeam}|${e.dateEvent}`;
+  const byKey = new Map<string, SDBEvent>();
+  for (const e of season) byKey.set(keyOf(e), e);
+  for (const e of dYest) byKey.set(keyOf(e), e);
+  for (const e of dToday) byKey.set(keyOf(e), e); // hoy = más fresco, pisa
+  return [...byKey.values()];
 }
 
 /** Mapea el estado de TheSportsDB a nuestro enum interno. */
