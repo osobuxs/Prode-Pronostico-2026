@@ -21,6 +21,7 @@ export const predictzScraper: Scraper = {
   slug: "predictz",
   name: "PredictZ",
   url: PREDICTZ_URL,
+  needsBrowser: true,
 
   async scrape(): Promise<ScrapedPrediction[]> {
     const html = await fetchRenderedHtml(PREDICTZ_URL, { waitFor: "td.fixt" });

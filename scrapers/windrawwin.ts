@@ -19,6 +19,7 @@ export const windrawwinScraper: Scraper = {
   slug: "windrawwin",
   name: "WinDrawWin",
   url: WINDRAWWIN_URL,
+  needsBrowser: true,
 
   async scrape(): Promise<ScrapedPrediction[]> {
     const html = await fetchRenderedHtml(WINDRAWWIN_URL, { waitFor: ".wttr" });

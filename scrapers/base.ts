@@ -8,6 +8,11 @@ export interface Scraper {
   name: string; // "Forebet"
   url: string; // página de origen
   /**
+   * Usa Playwright (navegador). Esas fuentes NO corren en Vercel
+   * (serverless) → solo en el cron de GitHub Actions.
+   */
+  needsBrowser?: boolean;
+  /**
    * Descarga y parsea la página, devolviendo un pronóstico por partido.
    * Debe ser tolerante: si un partido no se puede parsear, lo saltea
    * en vez de tirar todo abajo.
