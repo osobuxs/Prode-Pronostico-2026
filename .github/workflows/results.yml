@@ -26,6 +26,10 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # Resultados desde TheSportsDB (football-data free no da marcadores).
-          # Opcional: si cargás una key propia gratis, sino usa la de prueba.
+          # Fuente PRIMARIA de estado + marcador en vivo (cruza por external_id).
+          # Sin esta key el cron cae solo a TheSportsDB y los partidos del Mundial
+          # se quedan colgados en vivo (TheSportsDB crea los eventos con delay).
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          FOOTBALL_DATA_COMPETITION: ${{ secrets.FOOTBALL_DATA_COMPETITION }}
+          # Fallback de marcador cuando football-data lo deja en null.
           SPORTSDB_API_KEY: ${{ secrets.SPORTSDB_API_KEY }}
