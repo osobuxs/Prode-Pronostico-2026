@@ -1,6 +1,6 @@
-// Cliente de TheSportsDB para los RESULTADOS reales del Mundial.
-// football-data (free) marca los partidos FINISHED pero NO da el marcador,
-// así que los resultados los tomamos de acá.
+// Cliente de TheSportsDB. Es el FALLBACK de resultados: football-data
+// (free) ya da estado + marcador en vivo, pero crea los eventos con delay,
+// así que TheSportsDB cubre los huecos (ver lib/updateResults.ts).
 //
 // Key: la de prueba pública funciona, pero para producción conviene sacar
 // una gratis en https://www.thesportsdb.com/ (env SPORTSDB_API_KEY).
