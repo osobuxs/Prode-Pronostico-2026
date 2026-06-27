@@ -66,7 +66,11 @@ export function groupLetter(fdGroup: string | null): string | null {
 
 /** Mapea el status de la API a nuestro enum interno. */
 export function mapStatus(fd: string): "scheduled" | "live" | "finished" {
-  if (fd === "FINISHED") return "finished";
-  if (fd === "IN_PLAY" || fd === "PAUSED") return "live";
+  const s = (fd ?? "").toUpperCase();
+  if (s === "FINISHED" || s === "AWARDED") return "finished";
+  // football-data usa varios valores para "en juego": IN_PLAY/PAUSED (v4) y
+  // LIVE (estado grueso que devuelve el endpoint /matches). Sin LIVE el partido
+  // se queda en "scheduled" y nunca muestra el cartel "en vivo".
+  if (s === "IN_PLAY" || s === "PAUSED" || s === "LIVE") return "live";
   return "scheduled";
 }
