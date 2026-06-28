@@ -42,6 +42,24 @@ const R32: R32Def[] = [
   { num: 88, home: { type: "runnerup", group: "D" }, away: { type: "runnerup", group: "G" }, advancesTo: 95 },
 ];
 
+/**
+ * Índice de los slots FIJOS de los dieciseisavos: clave "winner:E" / "runnerup:B"
+ * → nº de partido (73..88). Cada llave de R32 tiene al menos un slot
+ * ganador/segundo de un grupo concreto, y cada (posición, grupo) es único en
+ * todo el cuadro → sirve para ubicar un partido real en su nº sin ambigüedad.
+ */
+export function r32FixedSlotIndex(): Map<string, number> {
+  const index = new Map<string, number>();
+  for (const def of R32) {
+    for (const slot of [def.home, def.away]) {
+      if (slot.type === "winner" || slot.type === "runnerup") {
+        index.set(`${slot.type}:${slot.group}`, def.num);
+      }
+    }
+  }
+  return index;
+}
+
 export interface BracketTeam {
   name: string;
   code: string | null;

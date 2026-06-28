@@ -10,7 +10,8 @@
     "lint": "next lint",
     "scrape": "tsx scripts/scrape.ts",
     "update-results": "tsx scripts/update-results.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "seed:knockout": "tsx scripts/seed-knockout.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

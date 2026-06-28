@@ -1,7 +1,10 @@
 import type { VisualBracket, BracketNode, BracketSlot, Round } from "../lib/bracket";
+import type { MatchView } from "../lib/queries";
 import { flagUrl, displayName } from "../lib/flags";
 import { knockoutFixture } from "../lib/fixture";
 import { WorldCupTrophy } from "./WorldCupTrophy";
+
+type RealByNum = Map<number, MatchView>;
 
 const ROUND_LABEL: Record<Round, string> = {
   R32: "Dieciseisavos",
@@ -11,7 +14,13 @@ const ROUND_LABEL: Record<Round, string> = {
   F: "Final",
 };
 
-export function BracketTree({ bracket }: { bracket: VisualBracket }) {
+export function BracketTree({
+  bracket,
+  realByNum,
+}: {
+  bracket: VisualBracket;
+  realByNum: RealByNum;
+}) {
   const leftCols: Round[] = ["R32", "R16", "QF", "SF"];
   const rightCols: Round[] = ["SF", "QF", "R16", "R32"];
 
@@ -36,6 +45,7 @@ export function BracketTree({ bracket }: { bracket: VisualBracket }) {
               nodes={bracket.left[r as "R32" | "R16" | "QF" | "SF"]}
               dir="left"
               isLast={i === leftCols.length - 1}
+              realByNum={realByNum}
             />
           ))}
 
@@ -48,6 +58,7 @@ export function BracketTree({ bracket }: { bracket: VisualBracket }) {
               nodes={bracket.right[r as "R32" | "R16" | "QF" | "SF"]}
               dir="right"
               isLast={i === 0}
+              realByNum={realByNum}
             />
           ))}
         </div>
@@ -61,11 +72,13 @@ function Column({
   nodes,
   dir,
   isLast,
+  realByNum,
 }: {
   round: Round;
   nodes: BracketNode[];
   dir: "left" | "right";
   isLast: boolean;
+  realByNum: RealByNum;
 }) {
   return (
     <div className="flex flex-1 flex-col">
@@ -87,7 +100,7 @@ function Column({
                 dir === "left" ? "pr-3" : "pl-3"
               }`}
             >
-              <MatchBox node={node} />
+              <MatchBox node={node} real={realByNum.get(node.num)} />
             </div>
           );
         })}
@@ -127,20 +140,39 @@ function CenterFinal({ node, thirdPlace }: { node: BracketNode; thirdPlace: Brac
   );
 }
 
-function MatchBox({ node }: { node: BracketNode }) {
-  // Siempre mostramos los dos slots (con label si aún no hay equipo),
-  // igual en TODAS las rondas — así se ve "Ganador P74 vs Ganador P77".
+function MatchBox({ node, real }: { node: BracketNode; real?: MatchView }) {
+  // Si la llave ya está confirmada (partido real en la base), usamos los
+  // equipos reales y mostramos el marcador. Si no, los slots proyectados
+  // ("Ganador P74 vs Ganador P77" o "Ganador A vs 2º B").
+  const top = real ? slotFromTeam(real.home) : node.top;
+  const bottom = real ? slotFromTeam(real.away) : node.bottom;
+  const live = real?.status === "live";
+  const finished = real?.status === "finished";
+  const hasScore = real && (real.realHome !== null || real.realAway !== null);
+  const showScore = real && (live || finished) && hasScore;
+
   return (
     <div className="w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-2 py-1.5">
-      <div className="mb-1 text-center text-[8px] font-bold uppercase tracking-wide text-neutral-600">
-        Partido {node.num}
+      <div className="mb-1 flex items-center justify-center gap-1.5 text-[8px] font-bold uppercase tracking-wide text-neutral-600">
+        <span>Partido {node.num}</span>
+        {live && (
+          <span className="flex items-center gap-0.5 text-rose-400">
+            <span className="h-1 w-1 animate-pulse rounded-full bg-rose-500" />
+            vivo
+          </span>
+        )}
       </div>
-      <SlotLine slot={node.top} />
+      <SlotLine slot={top} score={showScore ? real!.realHome : null} />
       <div className="my-0.5 h-px bg-neutral-800" />
-      <SlotLine slot={node.bottom} />
+      <SlotLine slot={bottom} score={showScore ? real!.realAway : null} />
       <FixtureLine num={node.num} />
     </div>
   );
+}
+
+/** Construye un slot del cuadro a partir de un equipo real. */
+function slotFromTeam(team: { name: string; code: string | null }): BracketSlot {
+  return { label: team.name, team: { name: team.name, code: team.code } };
 }
 
 /** Fecha + sede fija del partido del cuadro (no depende de los equipos). */
@@ -171,7 +203,7 @@ function FixtureLine({ num }: { num: number }) {
   );
 }
 
-function SlotLine({ slot }: { slot: BracketSlot }) {
+function SlotLine({ slot, score }: { slot: BracketSlot; score?: number | null }) {
   const flag = slot.team ? flagUrl(slot.team.code) : null;
   return (
     <div className="flex items-center gap-1.5">
@@ -197,6 +229,11 @@ function SlotLine({ slot }: { slot: BracketSlot }) {
         </span>
       ) : (
         <span className="truncate text-[10px] italic text-neutral-500">{slot.label}</span>
+      )}
+      {score !== null && score !== undefined && (
+        <span className="ml-auto shrink-0 text-[11px] font-black tabular-nums text-white">
+          {score}
+        </span>
       )}
     </div>
   );

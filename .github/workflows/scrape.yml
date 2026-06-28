@@ -19,6 +19,14 @@ jobs:
       - run: npm ci
       # PredictZ y WinDrawWin se scrapean con Playwright → hace falta chromium
       - run: npx playwright install --with-deps chromium
+      # Antes de scrapear, persistimos los partidos de eliminatoria ya
+      # confirmados (16avos, después octavos, etc.) para que el scrape tenga
+      # contra qué cruzar sus pronósticos.
+      - run: npm run seed:knockout
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
       - run: npm run scrape
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

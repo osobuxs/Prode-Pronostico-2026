@@ -1,13 +1,23 @@
 import type { ResolvedBracket, RoundSection, BracketNode, BracketSlot } from "../lib/bracket";
+import type { MatchView } from "../lib/queries";
 import { flagUrl, displayName } from "../lib/flags";
 import { knockoutFixture } from "../lib/fixture";
+
+const GRADE_STYLE: Record<string, string> = {
+  exact: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
+  outcome: "text-amber-400 border-amber-500/40 bg-amber-500/10",
+  miss: "text-rose-400 border-rose-500/30 bg-rose-500/5",
+  pending: "text-neutral-400 border-neutral-700 bg-neutral-800/40",
+};
 
 export function Bracket({
   bracket,
   rounds,
+  realByNum,
 }: {
   bracket: ResolvedBracket;
   rounds: RoundSection[];
+  realByNum: Map<number, MatchView>;
 }) {
   return (
     <div className="mt-10">
@@ -18,7 +28,7 @@ export function Bracket({
           <h2 className="mb-3 text-xl font-black tracking-tight">{round.label}</h2>
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             {round.matches.map((m) => (
-              <MatchCard key={m.num} node={m} />
+              <MatchCard key={m.num} node={m} real={realByNum.get(m.num)} />
             ))}
           </div>
         </section>
@@ -27,7 +37,7 @@ export function Bracket({
   );
 }
 
-function MatchCard({ node }: { node: BracketNode }) {
+function MatchCard({ node, real }: { node: BracketNode; real?: MatchView }) {
   const fx = knockoutFixture(node.num);
   const flag = fx?.venue ? flagUrl(fx.venue.countryCode) : null;
   return (
@@ -42,9 +52,15 @@ function MatchCard({ node }: { node: BracketNode }) {
           </span>
         )}
       </div>
-      <SlotRow slot={node.top} />
-      <div className="my-1 text-center text-[9px] font-bold text-neutral-700">VS</div>
-      <SlotRow slot={node.bottom} />
+      {real ? (
+        <RealMatch match={real} />
+      ) : (
+        <>
+          <SlotRow slot={node.top} />
+          <div className="my-1 text-center text-[9px] font-bold text-neutral-700">VS</div>
+          <SlotRow slot={node.bottom} />
+        </>
+      )}
       {fx?.venue && (
         <div className="mt-2 flex items-center gap-1.5 border-t border-neutral-800 pt-1.5 text-[10px] text-neutral-500">
           {flag && (
@@ -64,6 +80,106 @@ function MatchCard({ node }: { node: BracketNode }) {
       )}
     </div>
   );
+}
+
+/** Llave de 16avos YA confirmada: equipos reales + marcador + consenso. */
+function RealMatch({ match }: { match: MatchView }) {
+  const live = match.status === "live";
+  const finished = match.status === "finished";
+  const hasScore = match.realHome !== null || match.realAway !== null;
+  const showScore = (live || finished) && hasScore;
+
+  return (
+    <>
+      <TeamLine team={match.home} />
+      <div className="my-1 flex items-center justify-center gap-2 text-[9px] font-bold text-neutral-700">
+        {showScore ? (
+          <span
+            className={`rounded px-2 py-0.5 text-sm font-black tabular-nums ${
+              live ? "bg-rose-600 text-white" : "bg-neutral-800 text-white"
+            }`}
+          >
+            {match.realHome ?? 0}–{match.realAway ?? 0}
+          </span>
+        ) : (
+          "VS"
+        )}
+        {live && (
+          <span className="flex items-center gap-1 text-[8px] uppercase text-rose-400">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+            vivo
+          </span>
+        )}
+      </div>
+      <TeamLine team={match.away} />
+
+      {/* Consenso de las fuentes */}
+      <div className="mt-2 flex items-center justify-center gap-1.5 border-t border-neutral-800 pt-1.5">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
+          Consenso
+        </span>
+        {match.consensus.sampleSize > 0 ? (
+          <>
+            <span
+              className={`rounded border px-1.5 py-0.5 text-[11px] font-black tabular-nums ${GRADE_STYLE[match.consensusGrade]}`}
+            >
+              {fmt(match.consensus.predHome)}–{fmt(match.consensus.predAway)}
+            </span>
+            <span className="text-[9px] text-neutral-600">
+              {match.consensus.sampleSize} fuentes
+            </span>
+          </>
+        ) : (
+          <span className="text-[10px] text-neutral-600">sin pronósticos aún</span>
+        )}
+      </div>
+
+      {match.predictions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+          {match.predictions.map((p, i) => (
+            <span
+              key={i}
+              className={`rounded border px-1 py-0.5 text-[9px] font-medium ${GRADE_STYLE[p.grade]}`}
+            >
+              <span className="opacity-70">{p.sourceName}</span>{" "}
+              <span className="tabular-nums">
+                {fmt(p.predHome)}–{fmt(p.predAway)}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TeamLine({ team }: { team: { name: string; code: string | null } }) {
+  const flag = flagUrl(team.code);
+  return (
+    <div className="flex items-center gap-2">
+      {flag ? (
+        <img
+          src={flag}
+          alt=""
+          width={22}
+          height={16}
+          loading="lazy"
+          className="h-4 w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-white/10"
+        />
+      ) : (
+        <span className="grid h-4 w-[22px] shrink-0 place-items-center rounded-[2px] bg-neutral-800 text-[7px] text-neutral-500">
+          ?
+        </span>
+      )}
+      <span className="truncate text-sm font-semibold">
+        {displayName(team.name, team.code)}
+      </span>
+    </div>
+  );
+}
+
+function fmt(n: number | null): string {
+  return n === null ? "?" : String(n);
 }
 
 function SlotRow({ slot }: { slot: BracketSlot }) {

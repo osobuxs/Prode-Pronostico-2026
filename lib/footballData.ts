@@ -57,6 +57,22 @@ export async function fetchGroupStageMatches(): Promise<FDMatch[]> {
   return all.filter((m) => m.stage === "GROUP_STAGE" && m.group);
 }
 
+/**
+ * Partidos de fase ELIMINATORIA con AMBOS equipos ya confirmados.
+ * Genérico: hoy devuelve los 16 de LAST_32 (16avos); a medida que se juega
+ * el torneo va sumando LAST_16, QUARTER_FINALS, etc. (cuando dejan de ser TBD).
+ * football-data deja homeTeam/awayTeam en null hasta que se define el cruce.
+ */
+export async function fetchKnockoutMatches(): Promise<FDMatch[]> {
+  const all = await fetchMatches();
+  return all.filter(
+    (m) =>
+      m.stage !== "GROUP_STAGE" &&
+      m.homeTeam?.id != null &&
+      m.awayTeam?.id != null
+  );
+}
+
 /** "GROUP_A" → "A" */
 export function groupLetter(fdGroup: string | null): string | null {
   if (!fdGroup) return null;

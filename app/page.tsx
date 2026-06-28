@@ -1,6 +1,7 @@
-import { getGroups } from "../lib/queries";
+import { getGroups, getKnockoutMatches } from "../lib/queries";
 import { computeStandings } from "../lib/standings";
 import { resolveBracket, buildVisualBracket, bracketRounds } from "../lib/bracket";
+import { mapRealMatchesToBracket } from "../lib/knockoutData";
 import { GroupCard } from "../components/GroupCard";
 import { Bracket } from "../components/Bracket";
 import { BracketTree } from "../components/BracketTree";
@@ -12,10 +13,11 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   let groups: Awaited<ReturnType<typeof getGroups>> = [];
+  let knockout: Awaited<ReturnType<typeof getKnockoutMatches>> = [];
   let error: string | null = null;
 
   try {
-    groups = await getGroups();
+    [groups, knockout] = await Promise.all([getGroups(), getKnockoutMatches()]);
   } catch (e: any) {
     error = e.message;
   }
@@ -28,6 +30,9 @@ export default async function HomePage() {
   );
   const bracket = hasData ? resolveBracket(standingsByGroup) : null;
   const visual = bracket ? buildVisualBracket(bracket) : null;
+  // Partidos REALES de 16avos (ya confirmados) ubicados en su nº de llave:
+  // sus pronósticos/consenso/resultado pisan la proyección.
+  const realByNum = mapRealMatchesToBracket(knockout, standingsByGroup);
 
   return (
     <>
@@ -77,14 +82,20 @@ export default async function HomePage() {
           </div>
 
           {bracket && visual && (
-            <Bracket bracket={bracket} rounds={bracketRounds(visual)} />
+            <Bracket
+              bracket={bracket}
+              rounds={bracketRounds(visual)}
+              realByNum={realByNum}
+            />
           )}
         </>
       )}
       </main>
 
       {/* El cuadro va a TODO el ancho (fuera del contenedor centrado) */}
-      {!error && hasData && visual && <BracketTree bracket={visual} />}
+      {!error && hasData && visual && (
+        <BracketTree bracket={visual} realByNum={realByNum} />
+      )}
     </>
   );
 }
