@@ -191,7 +191,7 @@ export interface VisualBracket {
 }
 
 // Qué partidos alimentan cada llave (ganador de A vs ganador de B).
-const FEEDERS: Record<number, [number, number]> = {
+export const FEEDERS: Record<number, [number, number]> = {
   // Octavos
   89: [74, 77], 90: [73, 75], 91: [76, 78], 92: [79, 80],
   93: [83, 84], 94: [81, 82], 95: [86, 88], 96: [85, 87],
@@ -219,17 +219,23 @@ const LAYOUT = {
   },
 };
 
-/** Slot TBD que referencia al ganador de un partido. */
-function winnerSlot(matchNum: number): BracketSlot {
-  return { label: `Ganador P${matchNum}`, team: null };
+/**
+ * Slot que referencia al ganador de un partido. Si ya se conoce (el feeder
+ * terminó), trae el equipo real; si no, queda "Ganador P{n}" (TBD).
+ */
+function winnerSlot(matchNum: number, team?: BracketTeam | null): BracketSlot {
+  return { label: `Ganador P${matchNum}`, team: team ?? null };
 }
 
 /**
  * Arma el árbol visual completo. Las llaves de R32 vienen resueltas
- * (equipos o labels de grupo); el resto queda "Ganador P{n}" hasta que
- * el torneo avance.
+ * (equipos o labels de grupo); el resto se llena con el ganador real de
+ * cada feeder TERMINADO (`winnerByNum`) y queda "Ganador P{n}" hasta entonces.
  */
-export function buildVisualBracket(resolved: ResolvedBracket): VisualBracket {
+export function buildVisualBracket(
+  resolved: ResolvedBracket,
+  winnerByNum: Map<number, BracketTeam> = new Map()
+): VisualBracket {
   const r32ByNum = new Map(resolved.matches.map((m) => [m.num, m]));
 
   const r32Node = (num: number): BracketNode => {
@@ -238,7 +244,12 @@ export function buildVisualBracket(resolved: ResolvedBracket): VisualBracket {
   };
   const feederNode = (num: number, round: Round): BracketNode => {
     const [a, b] = FEEDERS[num];
-    return { num, round, top: winnerSlot(a), bottom: winnerSlot(b) };
+    return {
+      num,
+      round,
+      top: winnerSlot(a, winnerByNum.get(a)),
+      bottom: winnerSlot(b, winnerByNum.get(b)),
+    };
   };
 
   const side = (s: "left" | "right") => {

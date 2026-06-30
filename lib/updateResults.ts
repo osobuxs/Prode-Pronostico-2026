@@ -1,9 +1,25 @@
 import { createAdminClient } from "./supabase";
 import { fetchAllRelevantEvents, mapSdbStatus, toScore } from "./sportsdb";
-import { fetchMatches, mapStatus as mapFdStatus } from "./footballData";
+import { fetchMatches, mapStatus as mapFdStatus, resolveScore } from "./footballData";
 import { canonicalTeam } from "./normalize";
 
 type Status = "scheduled" | "live" | "finished";
+
+/**
+ * ¿El resultado define un ganador? En eliminatoria un empate sin penales
+ * decisivos NO define nada (el feed a veces manda fullTime/penales empatados
+ * durante unos segundos). Sirve para no pisar un resultado ya decidido.
+ */
+function decisive(
+  hs: number | null,
+  as: number | null,
+  penH: number | null,
+  penA: number | null
+): boolean {
+  if (hs == null || as == null) return false;
+  if (hs !== as) return true;
+  return penH != null && penA != null && penH !== penA;
+}
 
 /**
  * Actualiza ESTADO + MARCADOR de los partidos. Fuente híbrida:
@@ -27,7 +43,7 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
   const { data: teams } = await db.from("teams").select("id,name");
   const { data: matches } = await db
     .from("matches")
-    .select("id,home_team_id,away_team_id,group_id,external_id,kickoff");
+    .select("id,home_team_id,away_team_id,group_id,external_id,kickoff,home_score,away_score,pen_home,pen_away,status,stage");
   if (!teams || !matches) throw new Error("DB vacía. Corré `npm run seed` primero.");
 
   const canonById = new Map(teams.map((t) => [t.id, canonicalTeam(t.name)]));
@@ -60,13 +76,21 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
     let status: Status | null = null;
     let hs: number | null = null;
     let as: number | null = null;
+    let penH: number | null = null;
+    let penA: number | null = null;
+    let stage: string | null = null;
 
-    // 1) football-data por external_id (exacto)
+    // 1) football-data por external_id (exacto). `resolveScore` separa el
+    //    marcador (reglamentario + alargue) de la tanda de penales.
     const fd = m.external_id ? fdById.get(m.external_id) : undefined;
     if (fd) {
       status = mapFdStatus(fd.status);
-      hs = fd.score.fullTime.home;
-      as = fd.score.fullTime.away;
+      const sc = resolveScore(fd.score);
+      hs = sc.home;
+      as = sc.away;
+      penH = sc.penHome;
+      penA = sc.penAway;
+      stage = fd.stage && fd.stage !== "GROUP_STAGE" ? fd.stage : null;
     }
 
     // 2) TheSportsDB como fallback: si no hubo football-data, o si vino sin
@@ -111,12 +135,29 @@ export async function runUpdateResults(): Promise<{ updated: number; live: numbe
     }
 
     if (status === "scheduled" && hs === null && as === null) continue;
+
+    // Anti-flicker (eliminatoria): si el cruce YA estaba terminado y decidido en
+    // la base, no lo pisamos con un snapshot empatado/indeciso del feed.
+    if (
+      !isGroup &&
+      status === "finished" &&
+      m.status === "finished" &&
+      decisive(m.home_score, m.away_score, m.pen_home, m.pen_away) &&
+      !decisive(hs, as, penH, penA)
+    ) {
+      continue;
+    }
+
     if (status === "live") live++;
 
-    const { error } = await db
-      .from("matches")
-      .update({ home_score: hs, away_score: as, status })
-      .eq("id", m.id);
+    const payload: Record<string, unknown> = { home_score: hs, away_score: as, status };
+    // Solo pisamos penales/ronda cuando football-data los aportó (eliminatoria).
+    if (fd) {
+      payload.pen_home = penH;
+      payload.pen_away = penA;
+      payload.stage = stage;
+    }
+    const { error } = await db.from("matches").update(payload).eq("id", m.id);
     if (!error) updated++;
   }
 

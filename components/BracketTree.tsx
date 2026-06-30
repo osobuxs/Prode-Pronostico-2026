@@ -162,9 +162,9 @@ function MatchBox({ node, real }: { node: BracketNode; real?: MatchView }) {
           </span>
         )}
       </div>
-      <SlotLine slot={top} score={showScore ? real!.realHome : null} />
+      <SlotLine slot={top} score={showScore ? real!.realHome : null} pen={showScore ? real!.penHome : null} />
       <div className="my-0.5 h-px bg-neutral-800" />
-      <SlotLine slot={bottom} score={showScore ? real!.realAway : null} />
+      <SlotLine slot={bottom} score={showScore ? real!.realAway : null} pen={showScore ? real!.penAway : null} />
       <FixtureLine num={node.num} />
     </div>
   );
@@ -203,7 +203,15 @@ function FixtureLine({ num }: { num: number }) {
   );
 }
 
-function SlotLine({ slot, score }: { slot: BracketSlot; score?: number | null }) {
+function SlotLine({
+  slot,
+  score,
+  pen,
+}: {
+  slot: BracketSlot;
+  score?: number | null;
+  pen?: number | null;
+}) {
   const flag = slot.team ? flagUrl(slot.team.code) : null;
   return (
     <div className="flex items-center gap-1.5">
@@ -231,8 +239,11 @@ function SlotLine({ slot, score }: { slot: BracketSlot; score?: number | null })
         <span className="truncate text-[10px] italic text-neutral-500">{slot.label}</span>
       )}
       {score !== null && score !== undefined && (
-        <span className="ml-auto shrink-0 text-[11px] font-black tabular-nums text-white">
-          {score}
+        <span className="ml-auto flex shrink-0 items-baseline gap-0.5">
+          <span className="text-[11px] font-black tabular-nums text-white">{score}</span>
+          {pen !== null && pen !== undefined && (
+            <span className="text-[8px] font-bold tabular-nums text-amber-300">({pen})</span>
+          )}
         </span>
       )}
     </div>

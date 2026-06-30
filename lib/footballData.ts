@@ -24,17 +24,69 @@ export interface FDTeam {
   crest: string | null;
 }
 
+interface FDPartial {
+  home: number | null;
+  away: number | null;
+}
+
 export interface FDMatch {
   id: number;
   utcDate: string;
   status: string; // SCHEDULED | TIMED | IN_PLAY | PAUSED | FINISHED ...
-  stage: string; // GROUP_STAGE | ...
+  stage: string; // GROUP_STAGE | LAST_32 | LAST_16 | QUARTER_FINALS | ...
   group: string | null; // "GROUP_A" ...
   homeTeam: FDTeam;
   awayTeam: FDTeam;
+  // En un partido por penales, football-data SUMA los penales adentro de
+  // `fullTime` (queda no-empatado), y aparte trae `regularTime`/`extraTime`
+  // (el marcador antes de la tanda) y `penalties` (la tanda). `winner` viene
+  // NULL en shootouts, así que no se usa para decidir.
   score: {
-    fullTime: { home: number | null; away: number | null };
+    winner: string | null; // HOME_TEAM | AWAY_TEAM | DRAW | null
+    duration?: string; // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
+    fullTime: FDPartial;
+    halfTime?: FDPartial;
+    regularTime?: FDPartial;
+    extraTime?: FDPartial;
+    penalties?: FDPartial;
   };
+}
+
+/** Marcador "limpio" de un partido + la tanda de penales si la hubo. */
+export interface ResolvedScore {
+  home: number | null; // reglamentario + alargue (SIN penales)
+  away: number | null;
+  penHome: number | null; // tanda de penales (null si no hubo)
+  penAway: number | null;
+}
+
+/**
+ * Separa el marcador del partido de la tanda de penales.
+ * - REGULAR / EXTRA_TIME → el marcador es `fullTime` (ya incluye el alargue).
+ * - PENALTY_SHOOTOUT → el marcador es `regularTime + extraTime` (antes de la
+ *   tanda). Para la TANDA usamos `penalties` solo si es DECISIVO; si vino
+ *   ausente o empatado (el feed a veces lo manda inconsistente, ej. 4-4),
+ *   caemos a `fullTime`, que en un partido terminado siempre define al ganador.
+ */
+export function resolveScore(score: FDMatch["score"]): ResolvedScore {
+  const isPen = score.duration === "PENALTY_SHOOTOUT";
+  if (!isPen) {
+    return { home: score.fullTime.home, away: score.fullTime.away, penHome: null, penAway: null };
+  }
+
+  // Marcador antes de la tanda (90' + alargue). Sin desglose, cae a fullTime.
+  const reg = score.regularTime ?? score.fullTime;
+  const et = score.extraTime ?? { home: 0, away: 0 };
+  const home = (reg.home ?? 0) + (et.home ?? 0);
+  const away = (reg.away ?? 0) + (et.away ?? 0);
+
+  // Tanda: penalties si es decisivo; si no, fullTime (decisivo por definición).
+  const p = score.penalties;
+  const penDecisive = p && p.home != null && p.away != null && p.home !== p.away;
+  const penHome = penDecisive ? p!.home : score.fullTime.home;
+  const penAway = penDecisive ? p!.away : score.fullTime.away;
+
+  return { home, away, penHome, penAway };
 }
 
 /** Trae TODOS los partidos de la competición (incluye fase de grupos). */

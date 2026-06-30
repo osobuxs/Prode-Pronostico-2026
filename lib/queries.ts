@@ -18,8 +18,11 @@ export interface MatchView {
   away: TeamView;
   kickoff: string | null;
   status: MatchStatus;
-  realHome: number | null;
+  realHome: number | null; // reglamentario + alargue (SIN penales)
   realAway: number | null;
+  penHome: number | null; // tanda de penales (null si no hubo)
+  penAway: number | null;
+  stage: string | null; // ronda eliminatoria (LAST_32 | LAST_16 | ...) o null
   predictions: SourcePrediction[]; // una por fuente (las variantes)
   consensus: Consensus;
   consensusGrade: "exact" | "outcome" | "miss" | "pending";
@@ -141,6 +144,9 @@ function buildMatchView(m: any, predictions: Prediction[], ctx: BuildCtx): Match
     status: m.status,
     realHome: m.home_score,
     realAway: m.away_score,
+    penHome: m.pen_home ?? null,
+    penAway: m.pen_away ?? null,
+    stage: m.stage ?? null,
     predictions: sourcePreds,
     consensus,
     consensusGrade: gradePrediction(

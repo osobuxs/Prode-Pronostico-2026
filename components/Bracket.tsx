@@ -1,6 +1,6 @@
 import type { ResolvedBracket, RoundSection, BracketNode, BracketSlot } from "../lib/bracket";
 import type { MatchView } from "../lib/queries";
-import { flagUrl, displayName } from "../lib/flags";
+import { flagUrl, flagUrl2x, displayName } from "../lib/flags";
 import { knockoutFixture } from "../lib/fixture";
 
 const GRADE_STYLE: Record<string, string> = {
@@ -41,7 +41,7 @@ function MatchCard({ node, real }: { node: BracketNode; real?: MatchView }) {
   const fx = knockoutFixture(node.num);
   const flag = fx?.venue ? flagUrl(fx.venue.countryCode) : null;
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-3">
+    <div className="rounded-xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-neutral-900/40 p-3 transition-colors hover:border-neutral-700">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">
           Partido {node.num}
@@ -52,15 +52,18 @@ function MatchCard({ node, real }: { node: BracketNode; real?: MatchView }) {
           </span>
         )}
       </div>
+
+      {/* Línea principal horizontal: local · marcador · visitante */}
       {real ? (
         <RealMatch match={real} />
       ) : (
-        <>
-          <SlotRow slot={node.top} />
-          <div className="my-1 text-center text-[9px] font-bold text-neutral-700">VS</div>
-          <SlotRow slot={node.bottom} />
-        </>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <SlotSide slot={node.top} align="right" />
+          <span className="text-[9px] font-bold uppercase text-neutral-700">vs</span>
+          <SlotSide slot={node.bottom} align="left" />
+        </div>
       )}
+
       {fx?.venue && (
         <div className="mt-2 flex items-center gap-1.5 border-t border-neutral-800 pt-1.5 text-[10px] text-neutral-500">
           {flag && (
@@ -82,39 +85,49 @@ function MatchCard({ node, real }: { node: BracketNode; real?: MatchView }) {
   );
 }
 
-/** Llave de 16avos YA confirmada: equipos reales + marcador + consenso. */
+/** Llave YA confirmada: equipos reales + marcador (+ penales) + consenso. */
 function RealMatch({ match }: { match: MatchView }) {
   const live = match.status === "live";
   const finished = match.status === "finished";
   const hasScore = match.realHome !== null || match.realAway !== null;
   const showScore = (live || finished) && hasScore;
+  const hasPens = match.penHome !== null && match.penAway !== null;
 
   return (
     <>
-      <TeamLine team={match.home} />
-      <div className="my-1 flex items-center justify-center gap-2 text-[9px] font-bold text-neutral-700">
-        {showScore ? (
-          <span
-            className={`rounded px-2 py-0.5 text-sm font-black tabular-nums ${
-              live ? "bg-rose-600 text-white" : "bg-neutral-800 text-white"
-            }`}
-          >
-            {match.realHome ?? 0}–{match.realAway ?? 0}
-          </span>
-        ) : (
-          "VS"
-        )}
-        {live && (
-          <span className="flex items-center gap-1 text-[8px] uppercase text-rose-400">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
-            vivo
-          </span>
-        )}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <TeamSide team={match.home} align="right" />
+
+        <div className="flex min-w-[68px] flex-col items-center gap-1">
+          {showScore ? (
+            <span
+              className={`rounded-lg px-3 py-1 text-lg font-black tabular-nums ${
+                live ? "bg-rose-600 text-white" : "bg-neutral-800 text-white"
+              }`}
+            >
+              {match.realHome ?? 0}–{match.realAway ?? 0}
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold uppercase text-neutral-700">vs</span>
+          )}
+          {showScore && hasPens && (
+            <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-300">
+              pen. {match.penHome}–{match.penAway}
+            </span>
+          )}
+          {live && (
+            <span className="flex items-center gap-1 text-[8px] uppercase text-rose-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+              vivo
+            </span>
+          )}
+        </div>
+
+        <TeamSide team={match.away} align="left" />
       </div>
-      <TeamLine team={match.away} />
 
       {/* Consenso de las fuentes */}
-      <div className="mt-2 flex items-center justify-center gap-1.5 border-t border-neutral-800 pt-1.5">
+      <div className="mt-3 flex items-center justify-center gap-1.5 border-t border-neutral-800 pt-2">
         <span className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
           Consenso
         </span>
@@ -153,24 +166,21 @@ function RealMatch({ match }: { match: MatchView }) {
   );
 }
 
-function TeamLine({ team }: { team: { name: string; code: string | null } }) {
-  const flag = flagUrl(team.code);
+/** Un equipo confirmado (con bandera), alineado hacia el centro de la card. */
+function TeamSide({
+  team,
+  align,
+}: {
+  team: { name: string; code: string | null };
+  align: "left" | "right";
+}) {
   return (
-    <div className="flex items-center gap-2">
-      {flag ? (
-        <img
-          src={flag}
-          alt=""
-          width={22}
-          height={16}
-          loading="lazy"
-          className="h-4 w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-white/10"
-        />
-      ) : (
-        <span className="grid h-4 w-[22px] shrink-0 place-items-center rounded-[2px] bg-neutral-800 text-[7px] text-neutral-500">
-          ?
-        </span>
-      )}
+    <div
+      className={`flex items-center gap-2 ${
+        align === "right" ? "flex-row-reverse text-right" : "text-left"
+      }`}
+    >
+      <TeamFlag code={team.code} name={displayName(team.name, team.code)} />
       <span className="truncate text-sm font-semibold">
         {displayName(team.name, team.code)}
       </span>
@@ -178,29 +188,16 @@ function TeamLine({ team }: { team: { name: string; code: string | null } }) {
   );
 }
 
-function fmt(n: number | null): string {
-  return n === null ? "?" : String(n);
-}
-
-function SlotRow({ slot }: { slot: BracketSlot }) {
-  const flag = slot.team ? flagUrl(slot.team.code) : null;
-  return (
-    <div className="flex items-center gap-2">
-      {flag ? (
-        <img
-          src={flag}
-          alt=""
-          width={22}
-          height={16}
-          loading="lazy"
-          className="h-4 w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-white/10"
-        />
-      ) : (
-        <span className="grid h-4 w-[22px] shrink-0 place-items-center rounded-[2px] bg-neutral-800 text-[7px] text-neutral-500">
-          ?
-        </span>
-      )}
-      {slot.team ? (
+/** Slot proyectado: equipo propagado (con bandera) o label TBD ("Ganador A"). */
+function SlotSide({ slot, align }: { slot: BracketSlot; align: "left" | "right" }) {
+  if (slot.team) {
+    return (
+      <div
+        className={`flex items-center gap-2 ${
+          align === "right" ? "flex-row-reverse text-right" : "text-left"
+        }`}
+      >
+        <TeamFlag code={slot.team.code} name={displayName(slot.team.name, slot.team.code)} />
         <span
           className={`truncate text-sm font-semibold ${
             slot.provisional ? "italic text-amber-200/90" : ""
@@ -208,11 +205,41 @@ function SlotRow({ slot }: { slot: BracketSlot }) {
         >
           {displayName(slot.team.name, slot.team.code)}
         </span>
-      ) : (
-        <span className="truncate text-xs italic text-neutral-500">{slot.label}</span>
-      )}
+      </div>
+    );
+  }
+  return (
+    <div className={`min-w-0 ${align === "right" ? "text-right" : "text-left"}`}>
+      <span className="truncate text-xs italic text-neutral-500">{slot.label}</span>
     </div>
   );
+}
+
+function TeamFlag({ code, name }: { code: string | null; name: string }) {
+  const src = flagUrl(code);
+  const src2x = flagUrl2x(code);
+  if (!src) {
+    return (
+      <span className="grid h-5 w-7 shrink-0 place-items-center rounded-sm bg-neutral-800 text-[8px] font-bold text-neutral-400">
+        {code ?? "?"}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      srcSet={src2x ? `${src2x} 2x` : undefined}
+      alt={name}
+      width={28}
+      height={20}
+      loading="lazy"
+      className="h-5 w-7 shrink-0 rounded-sm object-cover ring-1 ring-white/10"
+    />
+  );
+}
+
+function fmt(n: number | null): string {
+  return n === null ? "?" : String(n);
 }
 
 function ThirdsSummary({ bracket }: { bracket: ResolvedBracket }) {

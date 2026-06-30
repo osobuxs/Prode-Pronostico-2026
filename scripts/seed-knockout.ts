@@ -1,6 +1,6 @@
 import "./_env";
 import { createAdminClient } from "../lib/supabase";
-import { fetchKnockoutMatches, mapStatus } from "../lib/footballData";
+import { fetchKnockoutMatches, mapStatus, resolveScore } from "../lib/footballData";
 import { canonicalTeam } from "../lib/normalize";
 
 /**
@@ -47,6 +47,7 @@ async function main() {
       continue;
     }
 
+    const sc = resolveScore(m.score);
     const { error } = await db.from("matches").upsert(
       {
         group_id: null, // fase eliminatoria
@@ -54,9 +55,12 @@ async function main() {
         away_team_id: awayId,
         kickoff: m.utcDate,
         external_id: String(m.id),
-        home_score: m.score.fullTime.home,
-        away_score: m.score.fullTime.away,
+        home_score: sc.home, // reglamentario + alargue (sin penales)
+        away_score: sc.away,
+        pen_home: sc.penHome,
+        pen_away: sc.penAway,
         status: mapStatus(m.status),
+        stage: m.stage, // LAST_32 | LAST_16 | ...
       },
       { onConflict: "home_team_id,away_team_id" }
     );

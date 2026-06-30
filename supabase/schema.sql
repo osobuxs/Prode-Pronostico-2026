@@ -28,9 +28,12 @@ create table if not exists matches (
   kickoff       timestamptz,           -- fecha/hora del partido
   external_id   text,                  -- id en football-data.org (para cruzar resultado real)
   -- resultado REAL (se actualiza por el cron de resultados):
-  home_score    smallint,
+  home_score    smallint,              -- reglamentario + alargue (SIN penales)
   away_score    smallint,
+  pen_home      smallint,              -- tanda de penales (NULL si no hubo)
+  pen_away      smallint,
   status        text not null default 'scheduled', -- scheduled | live | finished
+  stage         text,                  -- ronda eliminatoria: LAST_32 | LAST_16 | QUARTER_FINALS | SEMI_FINALS | THIRD_PLACE | FINAL (NULL en fase de grupos)
   venue         text,                  -- nombre crudo del estadio (lo trae Forebet)
   updated_at    timestamptz not null default now(),
   unique (home_team_id, away_team_id)

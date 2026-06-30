@@ -42,9 +42,12 @@ export interface Match {
   away_team_id: number | null;
   kickoff: string | null;
   external_id: string | null;
-  home_score: number | null;
+  home_score: number | null; // reglamentario + alargue (sin penales)
   away_score: number | null;
+  pen_home: number | null; // tanda de penales (null si no hubo)
+  pen_away: number | null;
   status: MatchStatus;
+  stage: string | null; // ronda eliminatoria o null en grupos
   venue: string | null; // nombre crudo del estadio
   updated_at: string;
 }

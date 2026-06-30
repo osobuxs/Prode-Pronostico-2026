@@ -1,7 +1,7 @@
 import { getGroups, getKnockoutMatches } from "../lib/queries";
 import { computeStandings } from "../lib/standings";
 import { resolveBracket, buildVisualBracket, bracketRounds } from "../lib/bracket";
-import { mapRealMatchesToBracket } from "../lib/knockoutData";
+import { resolveKnockout } from "../lib/knockoutData";
 import { GroupCard } from "../components/GroupCard";
 import { Bracket } from "../components/Bracket";
 import { BracketTree } from "../components/BracketTree";
@@ -28,11 +28,11 @@ export default async function HomePage() {
   const standingsByGroup = new Map(
     groups.map((g) => [g.name, computeStandings(g.matches)])
   );
+  // Partidos REALES ubicados en su nº de llave + ganadores de los cruces ya
+  // terminados (para llenar octavos en adelante con los equipos reales).
+  const { realByNum, winnerByNum } = resolveKnockout(knockout, standingsByGroup);
   const bracket = hasData ? resolveBracket(standingsByGroup) : null;
-  const visual = bracket ? buildVisualBracket(bracket) : null;
-  // Partidos REALES de 16avos (ya confirmados) ubicados en su nº de llave:
-  // sus pronósticos/consenso/resultado pisan la proyección.
-  const realByNum = mapRealMatchesToBracket(knockout, standingsByGroup);
+  const visual = bracket ? buildVisualBracket(bracket, winnerByNum) : null;
 
   return (
     <>
