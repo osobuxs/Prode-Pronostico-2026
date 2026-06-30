@@ -98,7 +98,7 @@ function RealMatch({ match }: { match: MatchView }) {
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <TeamSide team={match.home} align="right" />
 
-        <div className="flex min-w-[68px] flex-col items-center gap-1">
+        <div className="flex min-w-[56px] flex-col items-center gap-1">
           {showScore ? (
             <span
               className={`rounded-lg px-3 py-1 text-lg font-black tabular-nums ${
@@ -176,7 +176,7 @@ function TeamSide({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 ${
+      className={`flex min-w-0 items-center gap-2 ${
         align === "right" ? "flex-row-reverse text-right" : "text-left"
       }`}
     >
@@ -193,7 +193,7 @@ function SlotSide({ slot, align }: { slot: BracketSlot; align: "left" | "right" 
   if (slot.team) {
     return (
       <div
-        className={`flex items-center gap-2 ${
+        className={`flex min-w-0 items-center gap-2 ${
           align === "right" ? "flex-row-reverse text-right" : "text-left"
         }`}
       >
