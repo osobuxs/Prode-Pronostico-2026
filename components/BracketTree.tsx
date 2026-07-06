@@ -2,6 +2,7 @@ import type { VisualBracket, BracketNode, BracketSlot, Round } from "../lib/brac
 import type { MatchView } from "../lib/queries";
 import { flagUrl, displayName } from "../lib/flags";
 import { knockoutFixture } from "../lib/fixture";
+import { winnerSide } from "../lib/knockoutData";
 import { WorldCupTrophy } from "./WorldCupTrophy";
 
 type RealByNum = Map<number, MatchView>;
@@ -150,6 +151,8 @@ function MatchBox({ node, real }: { node: BracketNode; real?: MatchView }) {
   const finished = real?.status === "finished";
   const hasScore = real && (real.realHome !== null || real.realAway !== null);
   const showScore = real && (live || finished) && hasScore;
+  // Ganador del cruce ya jugado → su nombre va dorado (el que pasó de ronda).
+  const win = real && finished ? winnerSide(real) : null;
 
   return (
     <div className="w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-2 py-1.5">
@@ -162,9 +165,9 @@ function MatchBox({ node, real }: { node: BracketNode; real?: MatchView }) {
           </span>
         )}
       </div>
-      <SlotLine slot={top} score={showScore ? real!.realHome : null} pen={showScore ? real!.penHome : null} />
+      <SlotLine slot={top} score={showScore ? real!.realHome : null} pen={showScore ? real!.penHome : null} won={win === "home"} />
       <div className="my-0.5 h-px bg-neutral-800" />
-      <SlotLine slot={bottom} score={showScore ? real!.realAway : null} pen={showScore ? real!.penAway : null} />
+      <SlotLine slot={bottom} score={showScore ? real!.realAway : null} pen={showScore ? real!.penAway : null} won={win === "away"} />
       <FixtureLine num={node.num} />
     </div>
   );
@@ -207,10 +210,12 @@ function SlotLine({
   slot,
   score,
   pen,
+  won,
 }: {
   slot: BracketSlot;
   score?: number | null;
   pen?: number | null;
+  won?: boolean;
 }) {
   const flag = slot.team ? flagUrl(slot.team.code) : null;
   return (
@@ -222,18 +227,25 @@ function SlotLine({
           width={18}
           height={13}
           loading="lazy"
-          className="h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ring-white/10"
+          className={`h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ${
+            won ? "ring-amber-400/70" : "ring-white/10"
+          }`}
         />
       ) : (
         <span className="h-[13px] w-[18px] shrink-0 rounded-[2px] bg-neutral-800/60" />
       )}
       {slot.team ? (
         <span
-          className={`truncate text-[11px] font-semibold ${
-            slot.provisional ? "italic text-amber-200/90" : ""
+          className={`flex min-w-0 items-center gap-1 truncate text-[11px] ${
+            won
+              ? "font-bold text-amber-300 [text-shadow:0_0_10px_rgba(251,191,36,0.45)]"
+              : slot.provisional
+                ? "font-semibold italic text-amber-200/90"
+                : "font-semibold"
           }`}
         >
-          {displayName(slot.team.name, slot.team.code)}
+          {won && <span className="shrink-0 text-[9px]">🏆</span>}
+          <span className="truncate">{displayName(slot.team.name, slot.team.code)}</span>
         </span>
       ) : (
         <span className="truncate text-[10px] italic text-neutral-500">{slot.label}</span>
