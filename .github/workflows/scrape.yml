@@ -1,10 +1,12 @@
 name: Scrapear pronósticos
 
-# Los PRONÓSTICOS casi no cambian una vez publicados → cada 12 horas alcanza.
-# Lo importante es no pegarle de más a Forebet/Vitibet (evitar baneos).
+# Los PRONÓSTICOS casi no cambian una vez publicados, pero las casas los
+# publican recién cuando el partido está cerca. Con 12h de cadencia el
+# pronóstico de una ronda nueva podía entrar tarde (o después del pitazo).
+# Cada 3h cierra esa ventana sin pegarle de más a Forebet/Vitibet (evitar baneos).
 on:
   schedule:
-    - cron: "0 6,18 * * *" # 06:00 y 18:00 UTC
+    - cron: "0 */3 * * *" # cada 3 horas (UTC)
   workflow_dispatch: {} # correr a mano cuando quieras
 
 jobs:
