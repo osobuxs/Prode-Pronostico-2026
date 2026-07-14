@@ -231,10 +231,14 @@ function winnerSlot(matchNum: number, team?: BracketTeam | null): BracketSlot {
  * Arma el árbol visual completo. Las llaves de R32 vienen resueltas
  * (equipos o labels de grupo); el resto se llena con el ganador real de
  * cada feeder TERMINADO (`winnerByNum`) y queda "Ganador P{n}" hasta entonces.
+ *
+ * El 3er puesto es el único cruce que se alimenta de PERDEDORES
+ * (`loserByNum`), no de ganadores.
  */
 export function buildVisualBracket(
   resolved: ResolvedBracket,
-  winnerByNum: Map<number, BracketTeam> = new Map()
+  winnerByNum: Map<number, BracketTeam> = new Map(),
+  loserByNum: Map<number, BracketTeam> = new Map()
 ): VisualBracket {
   const r32ByNum = new Map(resolved.matches.map((m) => [m.num, m]));
 
@@ -269,11 +273,15 @@ export function buildVisualBracket(
   };
 
   // 3er puesto: lo juegan los PERDEDORES de las semis (101 y 102)
+  const loserSlot = (matchNum: number): BracketSlot => ({
+    label: `Perdedor P${matchNum}`,
+    team: loserByNum.get(matchNum) ?? null,
+  });
   const thirdPlace: BracketNode = {
     num: 103,
     round: "F",
-    top: { label: "Perdedor P101", team: null },
-    bottom: { label: "Perdedor P102", team: null },
+    top: loserSlot(101),
+    bottom: loserSlot(102),
   };
 
   return {

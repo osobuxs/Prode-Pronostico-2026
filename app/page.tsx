@@ -30,9 +30,9 @@ export default async function HomePage() {
   );
   // Partidos REALES ubicados en su nº de llave + ganadores de los cruces ya
   // terminados (para llenar octavos en adelante con los equipos reales).
-  const { realByNum, winnerByNum } = resolveKnockout(knockout, standingsByGroup);
+  const { realByNum, winnerByNum, loserByNum } = resolveKnockout(knockout, standingsByGroup);
   const bracket = hasData ? resolveBracket(standingsByGroup) : null;
-  const visual = bracket ? buildVisualBracket(bracket, winnerByNum) : null;
+  const visual = bracket ? buildVisualBracket(bracket, winnerByNum, loserByNum) : null;
 
   return (
     <>

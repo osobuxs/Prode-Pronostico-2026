@@ -7,15 +7,20 @@ import { canonicalTeam } from "./normalize";
  * Resuelve la fase eliminatoria a partir de los partidos REALES:
  *   - `realByNum`   nº de llave (73..104) → partido real (consenso/resultado).
  *   - `winnerByNum` nº de llave → ganador del cruce (solo si TERMINÓ).
+ *   - `loserByNum`  nº de llave → perdedor del cruce (solo si TERMINÓ).
  *
  * Los dieciseisavos (73-88) se ubican por la POSICIÓN de grupo del equipo fijo
  * de cada llave. Las rondas siguientes se ubican por el PAR de rivales esperado
  * (los ganadores de sus feeders), cascadeando R32→R16→QF→SF→F. Así el cuadro de
  * octavos en adelante se llena con los ganadores reales a medida que se juega.
+ *
+ * El perdedor se registra para todos los cruces, pero solo se usa en el partido
+ * por el 3er puesto (103), que lo juegan los perdedores de las dos semis.
  */
 export interface KnockoutResolution {
   realByNum: Map<number, MatchView>;
   winnerByNum: Map<number, BracketTeam>;
+  loserByNum: Map<number, BracketTeam>;
 }
 
 /**
@@ -47,12 +52,15 @@ export function resolveKnockout(
 ): KnockoutResolution {
   const realByNum = new Map<number, MatchView>();
   const winnerByNum = new Map<number, BracketTeam>();
+  const loserByNum = new Map<number, BracketTeam>();
 
   const setWinner = (num: number) => {
     const m = realByNum.get(num);
     if (!m) return;
     const side = winnerSide(m);
-    if (side) winnerByNum.set(num, teamOf(m, side));
+    if (!side) return;
+    winnerByNum.set(num, teamOf(m, side));
+    loserByNum.set(num, teamOf(m, side === "home" ? "away" : "home"));
   };
 
   // ── R32 (73-88): por posición de grupo del equipo fijo de la llave ──
@@ -94,5 +102,16 @@ export function resolveKnockout(
     setWinner(num);
   }
 
-  return { realByNum, winnerByNum };
+  // ── 3er puesto (103): lo juegan los PERDEDORES de las dos semis ──
+  // Va aparte del loop porque no se alimenta de FEEDERS (ganadores) sino de
+  // los perdedores de 101 y 102, ya resueltos arriba.
+  const la = loserByNum.get(101);
+  const lb = loserByNum.get(102);
+  if (la && lb) {
+    const real = byPair.get(pairKey(canonicalTeam(la.name), canonicalTeam(lb.name)));
+    if (real) realByNum.set(103, real);
+    setWinner(103);
+  }
+
+  return { realByNum, winnerByNum, loserByNum };
 }
