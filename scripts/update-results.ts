@@ -1,5 +1,11 @@
 import "./_env";
 import { runUpdateResults } from "../lib/updateResults";
+import { isIngestionDisabled } from "../lib/ingestionGate";
+
+if (isIngestionDisabled()) {
+  console.log("✦ ingestion disabled; skipping update-results.");
+  process.exit(0);
+}
 
 /** CLI: npm run update-results */
 runUpdateResults()

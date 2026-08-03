@@ -1,6 +1,7 @@
 import type { Scraper } from "../scrapers/base";
 import { createAdminClient } from "./supabase";
 import { canonicalTeam, matchKey } from "./normalize";
+import { isIngestionDisabled } from "./ingestionGate";
 
 export interface ScrapeSourceResult {
   source: string;
@@ -24,6 +25,7 @@ export async function runScrape(
   opts: { dry?: boolean } = {}
 ): Promise<ScrapeSourceResult[]> {
   const dry = opts.dry ?? false;
+  if (isIngestionDisabled()) return [];
   const db = createAdminClient();
 
   const { data: teams } = await db.from("teams").select("id,name");

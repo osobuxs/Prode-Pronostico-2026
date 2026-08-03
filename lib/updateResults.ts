@@ -2,6 +2,7 @@ import { createAdminClient } from "./supabase";
 import { fetchAllRelevantEvents, mapSdbStatus, toScore } from "./sportsdb";
 import { fetchMatches, mapStatus as mapFdStatus, resolveScore } from "./footballData";
 import { canonicalTeam } from "./normalize";
+import { isIngestionDisabled } from "./ingestionGate";
 
 type Status = "scheduled" | "live" | "finished";
 
@@ -38,6 +39,7 @@ function decisive(
  * /api/update-results (cron externo).
  */
 export async function runUpdateResults(): Promise<{ updated: number; live: number }> {
+  if (isIngestionDisabled()) return { updated: 0, live: 0 };
   const db = createAdminClient();
 
   const { data: teams } = await db.from("teams").select("id,name");

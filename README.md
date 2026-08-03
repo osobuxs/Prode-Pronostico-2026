@@ -101,10 +101,10 @@ npm run dev
 
 ### Automatizar la actualización (GitHub Actions)
 
-Los workflows en `.github/workflows/` ya corren solos:
+Los workflows en `.github/workflows/` están desactivados por ahora:
 
-- `scrape.yml` → pronósticos, 2 veces al día.
-- `results.yml` → resultados reales, cada hora.
+- `scrape.yml` → pronósticos.
+- `results.yml` → resultados reales.
 
 Para que funcionen, cargá los **Secrets** del repo
 (*Settings → Secrets and variables → Actions*):

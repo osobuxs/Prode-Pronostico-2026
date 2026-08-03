@@ -4,10 +4,7 @@ name: Scrapear pronósticos
 # publican recién cuando el partido está cerca. Con 12h de cadencia el
 # pronóstico de una ronda nueva podía entrar tarde (o después del pitazo).
 # Cada 3h cierra esa ventana sin pegarle de más a Forebet/Vitibet (evitar baneos).
-on:
-  schedule:
-    - cron: "0 */3 * * *" # cada 3 horas (UTC)
-  workflow_dispatch: {} # correr a mano cuando quieras
+on: {}
 
 jobs:
   scrape:

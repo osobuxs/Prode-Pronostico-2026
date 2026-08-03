@@ -1,4 +1,5 @@
 import { runUpdateResults } from "../../../lib/updateResults";
+import { isIngestionDisabled } from "../../../lib/ingestionGate";
 
 // Corre en Node (usa supabase-js), nunca cacheado.
 export const runtime = "nodejs";
@@ -14,6 +15,9 @@ export const dynamic = "force-dynamic";
  *   GET /api/update-results?key=TU_SECRETO
  */
 export async function GET(req: Request) {
+  if (isIngestionDisabled()) {
+    return new Response("Ingestion disabled", { status: 410 });
+  }
   const key = new URL(req.url).searchParams.get("key");
   if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });

@@ -1,6 +1,7 @@
 import "./_env";
 import { SCRAPERS } from "../scrapers";
 import { runScrape } from "../lib/runScrape";
+import { isIngestionDisabled } from "../lib/ingestionGate";
 
 /**
  * Corre TODOS los scrapers (incluidos los de Playwright) y guarda los
@@ -10,6 +11,11 @@ import { runScrape } from "../lib/runScrape";
  *   npm run scrape -- --dry
  */
 const dry = process.argv.includes("--dry");
+
+if (isIngestionDisabled()) {
+  console.log("✦ ingestion disabled; skipping scrape.");
+  process.exit(0);
+}
 
 runScrape(SCRAPERS, { dry })
   .then((results) => {
